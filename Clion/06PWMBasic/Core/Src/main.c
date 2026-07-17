@@ -23,7 +23,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+/*
+ * 双路 PWM 示例：STM32F072CBU6，系统及定时器时钟 48 MHz。
+ * TIM1_CH1=PA8，TIM2_CH1=PA0；两路 PSC=47、ARR=999、CCR=500。
+ * 计数频率=48 MHz/(47+1)=1 MHz，PWM=1 MHz/(999+1)=1 kHz，
+ * 占空比=500/(999+1)=50%。可用示波器或逻辑分析仪观察。
+ */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -90,6 +95,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  /* CCR 决定高电平持续的计数值；500/1000 对应 50% 占空比。 */
   /* 50% duty cycle: CCR1 / (ARR + 1) = 500 / 1000. */
 
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 500);
