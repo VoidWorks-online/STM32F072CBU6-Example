@@ -24,6 +24,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_cdc_if.h"
+/*
+ * USB CDC ACM 回显示例：PA11=USB_DM、PA12=USB_DP，USB 时钟必须保持 48 MHz，
+ * 否则主机可能无法枚举。MX_USB_DEVICE_Init() 在外设时钟就绪后启动协议栈；
+ * 主循环持续处理接收队列，不在 USB 回调中等待发送完成。
+ */
 
 /* USER CODE END Includes */
 
