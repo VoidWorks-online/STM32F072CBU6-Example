@@ -24,6 +24,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_cdc_if.h"
+/*
+ * USB CDC ACM 回显：PA11=DM、PA12=DP，USB 使用精确 48 MHz 时钟。
+ * 主机写入虚拟串口的数据先在接收回调中复制入队，再由主循环异步回传，
+ * 从而避免在 USB 中断上下文中无限等待或执行大块处理。
+ */
 
 /* USER CODE END Includes */
 
