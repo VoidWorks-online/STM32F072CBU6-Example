@@ -1,0 +1,50 @@
+# Build output
+/build/
+/Debug/
+/Release/
+/cmake-build-*/
+
+# Compiler and linker output
+*.o
+*.obj
+*.a
+*.elf
+*.axf
+*.bin
+*.hex
+*.map
+*.d
+*.su
+*.cyclo
+*.lst
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# STM32CubeIDE local settings
+/.settings/
+/.metadata/
+*.launch
+
+# CLion / JetBrains local settings
+/.idea/*
+
+# Keep shared CLion run configurations under version control
+!/.idea/runConfigurations/
+!/.idea/runConfigurations/**
+
+# Local Codex/agent state
+/.agents/
+/.codex/
+
+# Editor and operating-system files
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
