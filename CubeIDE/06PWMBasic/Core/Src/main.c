@@ -23,7 +23,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+/*
+ * 双路 PWM 示例：系统/定时器时钟 48 MHz，TIM1_CH1=PA8、TIM2_CH1=PA0。
+ * PSC=47、ARR=999、CCR=500，因此计数频率 1 MHz、PWM 1 kHz、占空比 50%。
+ * 修改 CCR 会改变占空比；修改 PSC 或 ARR 会同时影响频率和分辨率。
+ */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -145,7 +149,6 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  /* 使用芯片内部 48 MHz 高速振荡器 HSI48，并通过 PLL 保持 48 MHz 输出。 */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -161,12 +164,10 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
-  /* PLL 输出作为系统时钟；AHB、APB1 均不分频，内核和定时器均运行于 48 MHz。 */
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
-  /* 48 MHz 下 Flash 需要 1 个等待周期。 */
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();

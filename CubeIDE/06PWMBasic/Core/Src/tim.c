@@ -43,11 +43,8 @@ void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  /* 48 MHz / (47 + 1) = 1 MHz，即每个计数对应 1 us。 */
   htim1.Init.Prescaler = 47;
-  /* 向上计数：计数器从 0 递增到 ARR 后重新从 0 开始。 */
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  /* 计数 0~999，共 1000 次，得到 1 kHz 的 PWM 周期。 */
   htim1.Init.Period = 999;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
@@ -63,9 +60,7 @@ void MX_TIM1_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  /* 初始比较值为 0，先保持 0% 占空比；main() 启动前再设置为 50%。 */
   sConfigOC.Pulse = 0;
-  /* 有效电平为高：CNT 小于 CCR1 时，通道输出高电平。 */
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -107,7 +102,6 @@ void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  /* TIM2 使用与 TIM1 相同的分频和周期，确保两路均为 1 kHz。 */
   htim2.Init.Prescaler = 47;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 999;
@@ -177,7 +171,6 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
     /**TIM1 GPIO Configuration
     PA8     ------> TIM1_CH1
     */
-    /* PA8 配置为复用推挽输出，由 TIM1 外设直接驱动 PWM 波形。 */
     GPIO_InitStruct.Pin = GPIO_PIN_8;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -199,7 +192,6 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
     /**TIM2 GPIO Configuration
     PA0     ------> TIM2_CH1
     */
-    /* PA0 配置为复用推挽输出，由 TIM2 外设直接驱动 PWM 波形。 */
     GPIO_InitStruct.Pin = GPIO_PIN_0;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
