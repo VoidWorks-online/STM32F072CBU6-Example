@@ -112,13 +112,13 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 
 /**
  * @brief 在主循环中处理 USB CDC 回显业务。
- * @note  本函数不会阻塞，应在 while (1) 中持续调用。
+ * @note  本函数不会阻塞；应在 while (1) 中反复调用。
  */
 void CDC_EchoProcess_FS(void);
 
 /**
- * @brief 获取因回显队列已满而丢弃的数据包数量。
- * @retval 丢包计数，正常通信时应保持为 0。
+ * @brief 获取因回显队列已满而丢弃的 USB 数据包数量。
+ * @retval 丢包计数；正常使用时应一直为 0。
  */
 uint32_t CDC_EchoGetDroppedPackets_FS(void);
 

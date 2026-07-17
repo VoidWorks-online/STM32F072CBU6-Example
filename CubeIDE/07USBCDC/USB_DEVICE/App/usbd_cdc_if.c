@@ -62,7 +62,11 @@
   */
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-/* USB 全速 CDC 端点单包最大为 64 字节，队列用于隔离接收与异步发送。 */
+/*
+ * USB 全速 CDC 端点一次最多收 64 字节。这里准备 8 个独立的数据槽：
+ * 接收中断把数据复制进队列，主循环再逐包发送，避免接收缓冲区被覆盖。
+ * 队列占用 8 * 64 = 512 字节 RAM；如业务繁忙，可按 RAM 容量调整槽数。
+ */
 #define CDC_ECHO_QUEUE_DEPTH       8U
 #define CDC_ECHO_PACKET_SIZE       CDC_DATA_FS_MAX_PACKET_SIZE
 /* USER CODE END PRIVATE_DEFINES */
@@ -98,11 +102,11 @@ uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
 
-/* USB 接收流程写入、主循环读出的单生产者单消费者环形队列。 */
+/* 单生产者（USB 接收回调）、单消费者（主循环）的环形数据包队列。 */
 static uint8_t cdcEchoData[CDC_ECHO_QUEUE_DEPTH][CDC_ECHO_PACKET_SIZE];
 static uint16_t cdcEchoLength[CDC_ECHO_QUEUE_DEPTH];
 
-/* 这些变量会在 USB 中断上下文和主循环之间共享，因此必须使用 volatile。 */
+/* volatile 告诉编译器：这些索引可能在中断和主循环两个执行环境中改变。 */
 static volatile uint8_t cdcEchoWriteIndex = 0U;
 static volatile uint8_t cdcEchoReadIndex = 0U;
 static volatile uint8_t cdcEchoSending = 0U;
@@ -276,12 +280,14 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   uint32_t copyLength = *Len;
 
   /*
-   * 此回调处于 USB 接收流程中，不能等待发送完成。先复制本包数据，
-   * 再由主循环异步发回，防止接收缓冲区被下一包数据覆盖。
+   * 此函数由 USB 接收流程调用，执行时间应尽量短，不能在这里 while 等待发送。
+   * CDC_Transmit_FS() 是异步发送，直接传入 Buf 后 Buf 可能被下一包改写，
+   * 所以先把本包复制到自有队列，再由主循环 CDC_EchoProcess_FS() 发出。
    */
   if (copyLength > CDC_ECHO_PACKET_SIZE)
   {
-    copyLength = CDC_ECHO_PACKET_SIZE; /* 防止异常长度造成数组越界。 */
+    /* 理论上全速端点不会超过 64 字节；这里防止异常长度导致数组越界。 */
+    copyLength = CDC_ECHO_PACKET_SIZE;
   }
 
   nextWriteIndex = (uint8_t)((cdcEchoWriteIndex + 1U) % CDC_ECHO_QUEUE_DEPTH);
@@ -290,17 +296,17 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
     memcpy(cdcEchoData[cdcEchoWriteIndex], Buf, copyLength);
     cdcEchoLength[cdcEchoWriteIndex] = (uint16_t)copyLength;
 
-    /* 数据写完后再发布索引，确保主循环看到的是完整数据包。 */
+    /* 先写数据和长度，最后发布写索引，主循环才会看到完整的数据包。 */
     __DMB();
     cdcEchoWriteIndex = nextWriteIndex;
   }
   else
   {
-    /* 队列已满时记录丢包，避免在 USB 回调中阻塞。 */
+    /* 主循环长期不运行或主机连续突发发送时，队列可能装满。 */
     cdcEchoDroppedPackets++;
   }
 
-  /* 立即重新挂接缓冲区并打开 OUT 端点，以便接收主机的下一包数据。 */
+  /* 必须重新挂接接收缓冲区并打开 OUT 端点，否则主机后续数据无法进入。 */
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
   return (USBD_OK);
@@ -323,7 +329,7 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 7 */
   USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
-  /* USB 尚未完成枚举时类数据为空，必须先判断以避免空指针访问。 */
+  /* 枚举尚未完成时 pClassData 可能为空，先判断可避免空指针访问。 */
   if ((hcdc == NULL) || (hcdc->TxState != 0U)){
     return USBD_BUSY;
   }
@@ -339,7 +345,7 @@ void CDC_EchoProcess_FS(void)
 {
   USBD_CDC_HandleTypeDef *hcdc;
 
-  /* USB 尚未完成枚举或配置时暂不处理，主循环下次会继续尝试。 */
+  /* USB 尚未完成枚举/配置时不处理，主循环下次会再次尝试。 */
   hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
   if (hcdc == NULL)
   {
@@ -348,7 +354,10 @@ void CDC_EchoProcess_FS(void)
 
   if (cdcEchoSending != 0U)
   {
-    /* 上一包仍在发送时必须保留当前队列槽，防止其内容被覆盖。 */
+    /*
+     * TxState 清零表示上一包已经真正发送完成。只有此时才能释放队列槽；
+     * 提前移动读索引会允许接收回调覆盖 USB 外设仍在使用的发送数据。
+     */
     if (hcdc->TxState != 0U)
     {
       return;
@@ -361,15 +370,14 @@ void CDC_EchoProcess_FS(void)
 
   if (cdcEchoReadIndex == cdcEchoWriteIndex)
   {
-    return; /* 队列为空。 */
+    return;                         /* 队列为空，没有数据需要回显。 */
   }
 
   __DMB();
   if (CDC_Transmit_FS(cdcEchoData[cdcEchoReadIndex],
                       cdcEchoLength[cdcEchoReadIndex]) == USBD_OK)
   {
-    /* 异步发送完成前继续占用当前槽。 */
-    cdcEchoSending = 1U;
+    cdcEchoSending = 1U;            /* 保留当前槽，直到异步发送完成。 */
   }
 }
 

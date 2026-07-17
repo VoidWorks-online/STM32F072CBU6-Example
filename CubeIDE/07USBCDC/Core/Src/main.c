@@ -25,9 +25,9 @@
 /* USER CODE BEGIN Includes */
 #include "usbd_cdc_if.h"
 /*
- * USB CDC ACM 回显：PA11=DM、PA12=DP，USB 使用精确 48 MHz 时钟。
- * 主机写入虚拟串口的数据先在接收回调中复制入队，再由主循环异步回传，
- * 从而避免在 USB 中断上下文中无限等待或执行大块处理。
+ * USB CDC ACM 回显示例：PA11=USB_DM、PA12=USB_DP，USB 时钟必须保持 48 MHz，
+ * 否则主机可能无法枚举。MX_USB_DEVICE_Init() 在外设时钟就绪后启动协议栈；
+ * 主循环持续处理接收队列，不在 USB 回调中等待发送完成。
  */
 
 /* USER CODE END Includes */
@@ -106,8 +106,9 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     /*
-     * 轮询 USB CDC 回显队列：主机发来的数据会按原顺序返回。
-     * 该函数不会阻塞，应尽量频繁调用，避免在主循环中加入长时间延时。
+     * USB CDC 回显业务轮询：收到的每个字节都会按原顺序发回主机。
+     * 函数内部是非阻塞的，因此不要在这里增加 HAL_Delay()；调用越及时，
+     * 越能承受主机连续发送的数据。如果以后加入其他业务，也应避免长时间阻塞。
      */
     CDC_EchoProcess_FS();
   }
@@ -123,6 +124,7 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+  RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -154,6 +156,21 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
+  /** Enable the SYSCFG APB clock
+  */
+  __HAL_RCC_CRS_CLK_ENABLE();
+
+  /** Configures CRS
+  */
+  RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+  RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
+  RCC_CRSInitStruct.Polarity = RCC_CRS_SYNC_POLARITY_RISING;
+  RCC_CRSInitStruct.ReloadValue = __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000,1000);
+  RCC_CRSInitStruct.ErrorLimitValue = 34;
+  RCC_CRSInitStruct.HSI48CalibrationValue = 32;
+
+  HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 }
 
 /* USER CODE BEGIN 4 */

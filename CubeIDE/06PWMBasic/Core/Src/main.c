@@ -24,9 +24,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /*
- * 双路 PWM 示例：系统/定时器时钟 48 MHz，TIM1_CH1=PA8、TIM2_CH1=PA0。
- * PSC=47、ARR=999、CCR=500，因此计数频率 1 MHz、PWM 1 kHz、占空比 50%。
- * 修改 CCR 会改变占空比；修改 PSC 或 ARR 会同时影响频率和分辨率。
+ * 双路 PWM 示例：STM32F072CBU6，系统及定时器时钟 48 MHz。
+ * TIM1_CH1=PA8，TIM2_CH1=PA0；两路 PSC=47、ARR=999、CCR=500。
+ * 计数频率=48 MHz/(47+1)=1 MHz，PWM=1 MHz/(999+1)=1 kHz，
+ * 占空比=500/(999+1)=50%。可用示波器或逻辑分析仪观察。
  */
 /* USER CODE END Includes */
 
@@ -94,27 +95,17 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  /* CCR 决定高电平持续的计数值；500/1000 对应 50% 占空比。 */
+  /* 50% duty cycle: CCR1 / (ARR + 1) = 500 / 1000. */
 
-  /*
-   * 两个定时器的计数时钟均为：
-   *   48 MHz / (PSC + 1) = 48 MHz / 48 = 1 MHz
-   * 自动重装载值 ARR 为 999，因此 PWM 周期为：
-   *   (ARR + 1) / 1 MHz = 1000 us，对应频率 1 kHz。
-   *
-   * PWM1 模式下，当 CNT < CCR1 时输出高电平。将 CCR1 设为 500，
-   * 高电平持续 500 个计数、完整周期为 1000 个计数，所以占空比为 50%。
-   */
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 500U);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 500U);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 500);
 
-  /* 启动 TIM1 通道 1，PWM 波形从 PA8（TIM1_CH1）输出。 */
   if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
   {
-    /* 启动失败时进入统一错误处理，避免程序带故障继续运行。 */
     Error_Handler();
   }
 
-  /* 启动 TIM2 通道 1，参数与 TIM1 相同，波形从 PA0（TIM2_CH1）输出。 */
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 500);
   if (HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
@@ -129,10 +120,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /*
-     * PWM 由定时器硬件持续产生，不需要在主循环中反复翻转 GPIO。
-     * CPU 保持空闲；后续可在此加入按键读取、占空比调节等应用逻辑。
-     */
   }
   /* USER CODE END 3 */
 }
@@ -151,10 +138,7 @@ void SystemClock_Config(void)
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI48;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
-  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV2;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -164,7 +148,7 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
@@ -185,7 +169,7 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* 关闭中断并停机，便于调试器定位初始化或 PWM 启动失败的位置。 */
+  /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
   {

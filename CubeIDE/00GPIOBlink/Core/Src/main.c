@@ -23,9 +23,12 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /*
- * GPIO 翻转示例：STM32F072CBU6，PA0 为推挽输出，PA13/PA14 保留 SWD。
- * 每 50 ms 翻转一次 PA0，一个完整高低周期约 100 ms（约 10 Hz），可用带限流电阻的
- * LED、示波器或逻辑分析仪判断运行是否正确。
+ * 示例名称：GPIO 定时翻转
+ * 目标芯片：STM32F072CBU6（UFQFPN48）
+ * 使用外设：GPIOA、SysTick；系统时钟为内部 HSI 8 MHz。
+ * 关键引脚：PA0 推挽输出，PA13/PA14 保留为 SWD。
+ * 运行结果：PA0 每 500 ms 翻转一次，完整高低周期约 1 s（约 1 Hz）。
+ * 可在 PA0 接带限流电阻的 LED、示波器或逻辑分析仪；具体排针需结合板卡确认。
  */
 /* USER CODE END Includes */
 
@@ -98,11 +101,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* 翻转 PA0 输出电平 */
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);
 
-    /* 延时 50 毫秒后进行下一次翻转 */
-    HAL_Delay(50);
+    /*
+     * 每次调用只改变一次输出电平。两次翻转间隔 500 ms，
+     * 因此从低到高再回到低需要约 1000 ms。
+     */
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0); // 反转 GPIO 电平
+    HAL_Delay(500); // 延迟 500 毫秒
 
     /* USER CODE END WHILE */
 
@@ -123,9 +128,8 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -136,11 +140,11 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
