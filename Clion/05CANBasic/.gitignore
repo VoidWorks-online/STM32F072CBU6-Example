@@ -1,0 +1,11 @@
+build/
+Debug/
+Release/
+cmake-build-*/
+.idea/workspace.xml
+*.o
+*.elf
+*.hex
+*.bin
+*.map
+*.d
