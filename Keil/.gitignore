@@ -1,0 +1,11 @@
+Objects/
+Listings/
+Debug/
+Release/
+*.o
+*.axf
+*.elf
+*.hex
+*.bin
+*.map
+*.d
