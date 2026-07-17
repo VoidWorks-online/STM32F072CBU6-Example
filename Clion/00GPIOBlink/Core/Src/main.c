@@ -22,7 +22,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+/*
+ * 示例名称：GPIO 定时翻转
+ * 目标芯片：STM32F072CBU6（UFQFPN48）
+ * 使用外设：GPIOA、SysTick；系统时钟为内部 HSI 8 MHz。
+ * 关键引脚：PA0 推挽输出，PA13/PA14 保留为 SWD。
+ * 运行结果：PA0 每 500 ms 翻转一次，完整高低周期约 1 s（约 1 Hz）。
+ * 可在 PA0 接带限流电阻的 LED、示波器或逻辑分析仪；具体排针需结合板卡确认。
+ */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,8 +102,12 @@ int main(void)
   while (1)
   {
 
+    /*
+     * 每次调用只改变一次输出电平。两次翻转间隔 500 ms，
+     * 因此从低到高再回到低需要约 1000 ms。
+     */
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0); // 反转 GPIO 电平
-    HAL_Delay(50); // 延迟 500 毫秒
+    HAL_Delay(500); // 延迟 500 毫秒
 
     /* USER CODE END WHILE */
 
